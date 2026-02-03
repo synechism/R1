@@ -165,3 +165,48 @@ def apply_rotary_emb(x: torch.Tensor, freqs_cis: torch.Tensor) -> torch.Tensor:
     freqs_cis = freqs_cis.view(1, x.size(1), 1, x.size(-1))
     y = torch.view_as_real(x * freqs_cis).flatten(3)
     return y.to(dtype)
+
+class MLP(nn.Module):
+
+    def __init__(self, dim: int, inter_dim: int):
+        super().__init__()
+        self.w1 = nn.Linear(dim, inter_dim, bias=False)
+        self.w2 = nn.Linear(inter_dim, dim, bias=False)
+        self.w3 = nn.Linear(dim, inter_dim, bias=False)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.w2(F.silu(self.w1(x)) * self.w3(x))
+
+class Expert(nn.Module):
+    """
+    Expert layer for Mixture-of-Experts (MoE) models.
+
+    Attributes:
+        w1 (nn.Module): Linear layer for input-to-hidden transformation.
+        w2 (nn.Module): Linear layer for hidden-to-output transformation.
+        w3 (nn.Module): Additional linear layer for feature transformation.
+    """
+    def __init__(self, dim: int, inter_dim: int):
+        """
+        Initializes the Expert layer.
+
+        Args:
+            dim (int): Input and output dimensionality.
+            inter_dim (int): Hidden layer dimensionality.
+        """
+        super().__init__()
+        self.w1 = nn.Linear(dim, inter_dim, bias=False)
+        self.w2 = nn.Linear(inter_dim, dim, bias=False)
+        self.w3 = nn.Linear(dim, inter_dim, bias=False)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass for the Expert layer.
+
+        Args:
+            x (torch.Tensor): Input tensor.
+
+        Returns:
+            torch.Tensor: Output tensor after expert computation.
+        """
+        return self.w2(F.silu(self.w1(x)) * self.w3(x))
